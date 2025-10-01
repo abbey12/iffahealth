@@ -4,7 +4,7 @@
   "description": "IFFAHEALTH Enhanced API - Production-ready telehealth platform backend",
   "main": "enhanced_server.js",
   "scripts": {
-    "start": "node dist/enhanced_server.js",
+    "start": "node dist/server.js",
     "dev": "nodemon enhanced_server.js",
     "setup-db": "node scripts/setup_enhanced_db.js",
     "test": "jest",
