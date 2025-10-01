@@ -24,7 +24,7 @@ export interface AppointmentAttributes {
   updatedAt: Date;
 }
 
-export interface AppointmentCreationAttributes extends Optional<AppointmentAttributes, 'id' | 'createdAt' | 'updatedAt'> {}
+export interface AppointmentCreationAttributes extends Optional<AppointmentAttributes, 'id' | 'createdAt' | 'updatedAt' | 'status' | 'followUpRequired'> {}
 
 export class Appointment extends Model<AppointmentAttributes, AppointmentCreationAttributes> implements AppointmentAttributes {
   public id!: string;

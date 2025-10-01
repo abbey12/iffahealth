@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
 import { asyncHandler } from '../middleware/errorHandler';
 
@@ -8,7 +8,7 @@ const router = express.Router();
 router.post('/chat', [
   body('message').notEmpty().withMessage('Message is required'),
   body('context').optional().isObject(),
-], asyncHandler(async (req, res) => {
+], asyncHandler(async (req: Request, res: Response) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({
@@ -24,7 +24,7 @@ router.post('/chat', [
   // In production, you would integrate with OpenAI, Google AI, or another AI service
   const aiResponse = await processAIMessage(message, context, req.user?.id);
 
-  res.json({
+  return res.json({
     success: true,
     data: {
       response: aiResponse,
@@ -39,7 +39,7 @@ router.post('/symptom-checker', [
   body('symptoms.*').notEmpty().withMessage('Each symptom must not be empty'),
   body('age').optional().isInt({ min: 0, max: 120 }).withMessage('Age must be between 0 and 120'),
   body('gender').optional().isIn(['male', 'female', 'other']).withMessage('Gender must be male, female, or other'),
-], asyncHandler(async (req, res) => {
+], asyncHandler(async (req: Request, res: Response) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({
@@ -54,7 +54,7 @@ router.post('/symptom-checker', [
   // This is a placeholder for AI symptom analysis
   const analysis = await analyzeSymptoms(symptoms, { age, gender });
 
-  res.json({
+  return res.json({
     success: true,
     data: {
       analysis,
@@ -66,12 +66,12 @@ router.post('/symptom-checker', [
 }));
 
 // Health tips endpoint
-router.get('/health-tips', asyncHandler(async (req, res) => {
+router.get('/health-tips', asyncHandler(async (req: Request, res: Response) => {
   const { category, limit = 10 } = req.query;
 
   const tips = await getHealthTips(category as string, Number(limit));
 
-  res.json({
+  return res.json({
     success: true,
     data: {
       tips,
@@ -81,7 +81,7 @@ router.get('/health-tips', asyncHandler(async (req, res) => {
 }));
 
 // Medication information endpoint
-router.get('/medication/:name', asyncHandler(async (req, res) => {
+router.get('/medication/:name', asyncHandler(async (req: Request, res: Response) => {
   const { name } = req.params;
 
   const medicationInfo = await getMedicationInfo(name);
@@ -93,7 +93,7 @@ router.get('/medication/:name', asyncHandler(async (req, res) => {
     });
   }
 
-  res.json({
+  return res.json({
     success: true,
     data: {
       medication: medicationInfo,
@@ -206,9 +206,22 @@ async function getHealthTips(category?: string, limit: number = 10): Promise<any
   return tips.slice(0, limit);
 }
 
-async function getMedicationInfo(name: string): Promise<any | null> {
+interface MedicationInfo {
+  name: string;
+  genericName: string;
+  dosage: string;
+  sideEffects: string[];
+  interactions: string[];
+  warnings: string[];
+}
+
+interface Medications {
+  [key: string]: MedicationInfo;
+}
+
+async function getMedicationInfo(name: string): Promise<MedicationInfo | null> {
   // This is a placeholder for medication database lookup
-  const medications = {
+  const medications: Medications = {
     'paracetamol': {
       name: 'Paracetamol',
       genericName: 'Acetaminophen',

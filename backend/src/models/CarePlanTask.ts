@@ -16,7 +16,7 @@ export interface CarePlanTaskAttributes {
   updatedAt: Date;
 }
 
-export interface CarePlanTaskCreationAttributes extends Optional<CarePlanTaskAttributes, 'id' | 'createdAt' | 'updatedAt'> {}
+export interface CarePlanTaskCreationAttributes extends Optional<CarePlanTaskAttributes, 'id' | 'createdAt' | 'updatedAt' | 'status'> {}
 
 export class CarePlanTask extends Model<CarePlanTaskAttributes, CarePlanTaskCreationAttributes> implements CarePlanTaskAttributes {
   public id!: string;

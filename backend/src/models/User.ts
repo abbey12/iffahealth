@@ -27,7 +27,7 @@ export interface UserAttributes {
   updatedAt: Date;
 }
 
-export interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'createdAt' | 'updatedAt'> {}
+export interface UserCreationAttributes extends Optional<UserAttributes, 'id' | 'createdAt' | 'updatedAt' | 'isVerified'> {}
 
 export class User extends Model<UserAttributes, UserCreationAttributes> implements UserAttributes {
   public id!: string;
@@ -64,8 +64,8 @@ export class User extends Model<UserAttributes, UserCreationAttributes> implemen
 
   public toJSON(): Partial<UserAttributes> {
     const values = { ...this.get() };
-    delete values.password;
-    return values;
+    const { password, ...rest } = values;
+    return rest;
   }
 }
 

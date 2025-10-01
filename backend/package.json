@@ -4,7 +4,7 @@
   "description": "IFFAHEALTH Enhanced API - Production-ready telehealth platform backend",
   "main": "enhanced_server.js",
   "scripts": {
-    "start": "node enhanced_server.js",
+    "start": "node dist/enhanced_server.js",
     "dev": "nodemon enhanced_server.js",
     "setup-db": "node scripts/setup_enhanced_db.js",
     "test": "jest",
@@ -14,7 +14,9 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "build": "echo 'No build step required for Node.js'",
+    "clean": "rm -rf dist",
+    "prebuild": "npm run clean",
+    "build": "tsc",
     "docker:build": "docker build -t iffahealth-api .",
     "docker:run": "docker run -p 3000:3000 iffahealth-api",
     "migrate": "node scripts/migrate.js",
@@ -65,7 +67,7 @@
     "express-json-validator-middleware": "^3.0.0",
     "express-rate-limit": "^7.1.5",
     "express-session": "^1.17.3",
-    "express-validator": "^7.0.1",
+    "express-validator": "^7.1.0",
     "express-winston": "^4.2.0",
     "fs-extra": "^11.1.1",
     "handlebars": "^4.7.8",
@@ -74,6 +76,7 @@
     "joi": "^17.11.0",
     "jsonwebtoken": "^9.0.2",
     "lodash": "^4.17.21",
+    "sequelize": "^6.37.1",
     "moment": "^2.29.4",
     "moment-timezone": "^0.5.43",
     "morgan": "^1.10.0",
@@ -190,5 +193,6 @@
   "funding": {
     "type": "individual",
     "url": "https://github.com/sponsors/iffahealth"
-  }
+  },
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }

@@ -18,7 +18,7 @@ export interface PostDischargeCareAttributes {
   updatedAt: Date;
 }
 
-export interface PostDischargeCareCreationAttributes extends Optional<PostDischargeCareAttributes, 'id' | 'createdAt' | 'updatedAt'> {}
+export interface PostDischargeCareCreationAttributes extends Optional<PostDischargeCareAttributes, 'id' | 'createdAt' | 'updatedAt' | 'status'> {}
 
 export class PostDischargeCare extends Model<PostDischargeCareAttributes, PostDischargeCareCreationAttributes> implements PostDischargeCareAttributes {
   public id!: string;

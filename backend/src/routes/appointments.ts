@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import { body, validationResult } from 'express-validator';
 import { Appointment } from '../models/Appointment';
 import { User } from '../models/User';
@@ -7,7 +7,7 @@ import { asyncHandler } from '../middleware/errorHandler';
 const router = express.Router();
 
 // Get user's appointments
-router.get('/', asyncHandler(async (req, res) => {
+router.get('/', asyncHandler(async (req: Request, res: Response) => {
   const userId = req.user?.id;
   const { status, type, page = 1, limit = 10 } = req.query;
 
@@ -39,7 +39,7 @@ router.get('/', asyncHandler(async (req, res) => {
     order: [['appointmentDate', 'ASC']],
   });
 
-  res.json({
+  return res.json({
     success: true,
     data: {
       appointments,
@@ -54,7 +54,7 @@ router.get('/', asyncHandler(async (req, res) => {
 }));
 
 // Get appointment by ID
-router.get('/:id', asyncHandler(async (req, res) => {
+router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const userId = req.user?.id;
 
@@ -84,7 +84,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
     });
   }
 
-  res.json({
+  return res.json({
     success: true,
     data: { appointment },
   });
@@ -99,7 +99,7 @@ router.post('/', [
   body('specialty').notEmpty().withMessage('Specialty is required'),
   body('reason').notEmpty().withMessage('Reason for appointment is required'),
   body('duration').optional().isInt({ min: 15, max: 120 }).withMessage('Duration must be between 15 and 120 minutes'),
-], asyncHandler(async (req, res) => {
+], asyncHandler(async (req: Request, res: Response) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({
@@ -133,15 +133,15 @@ router.post('/', [
   }
 
   // Generate meeting link for video appointments
-  let meetingLink = null;
-  let roomId = null;
+  let meetingLink: string | undefined = undefined;
+  let roomId: string | undefined = undefined;
   if (type === 'video') {
     roomId = `room_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     meetingLink = `${process.env.CLIENT_URL}/video-call/${roomId}`;
   }
 
   const appointment = await Appointment.create({
-    patientId: req.user?.id,
+    patientId: req.user!.id,
     doctorId,
     appointmentDate,
     appointmentTime,
@@ -154,7 +154,7 @@ router.post('/', [
     roomId,
   });
 
-  res.status(201).json({
+  return res.status(201).json({
     success: true,
     message: 'Appointment created successfully',
     data: { appointment },
@@ -162,7 +162,7 @@ router.post('/', [
 }));
 
 // Update appointment
-router.put('/:id', asyncHandler(async (req, res) => {
+router.put('/:id', asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const userId = req.user?.id;
 
@@ -194,7 +194,7 @@ router.put('/:id', asyncHandler(async (req, res) => {
 
   await appointment.update(updateData);
 
-  res.json({
+  return res.json({
     success: true,
     message: 'Appointment updated successfully',
     data: { appointment },
@@ -202,7 +202,7 @@ router.put('/:id', asyncHandler(async (req, res) => {
 }));
 
 // Cancel appointment
-router.patch('/:id/cancel', asyncHandler(async (req, res) => {
+router.patch('/:id/cancel', asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
   const userId = req.user?.id;
 
@@ -229,7 +229,7 @@ router.patch('/:id/cancel', asyncHandler(async (req, res) => {
 
   await appointment.update({ status: 'cancelled' });
 
-  res.json({
+  return res.json({
     success: true,
     message: 'Appointment cancelled successfully',
     data: { appointment },
