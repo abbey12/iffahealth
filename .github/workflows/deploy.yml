@@ -113,7 +113,29 @@ jobs:
             echo "❌ Failed to resolve CNAME after 20 minutes"
             exit 1
           fi
-
+      - name: Set environment variables
+        run: |
+          set -e
+          eb setenv \
+            DATABASE_URL=${{ env.DATABASE_URL }} \
+            DB_HOST=${{ env.DB_HOST }} \
+            DB_PORT=${{ env.DB_PORT }} \
+            DB_NAME=${{ env.DB_NAME }} \
+            DB_USER=${{ env.DB_USER }} \
+            DB_PASSWORD=${{ env.DB_PASSWORD }} \
+            JWT_SECRET=${{ env.JWT_SECRET }} \
+            JWT_EXPIRES_IN=${{ env.JWT_EXPIRES_IN }} \
+            PORT=${{ env.PORT }} \
+            NODE_ENV=${{ env.NODE_ENV }} \
+            CORS_ORIGIN=${{ env.CORS_ORIGIN }} \
+            SMTP_HOST=${{ env.SMTP_HOST }} \
+            SMTP_PORT=${{ env.SMTP_PORT }} \
+            SMTP_USER=${{ env.SMTP_USER }} \
+            SMTP_PASS=${{ env.SMTP_PASS }} \
+            UPLOAD_DIR=${{ env.UPLOAD_DIR }} \
+            MAX_FILE_SIZE=${{ env.MAX_FILE_SIZE }} \
+            RATE_LIMIT_WINDOW_MS=${{ env.RATE_LIMIT_WINDOW_MS }} \
+            RATE_LIMIT_MAX_REQUESTS=${{ env.RATE_LIMIT_MAX_REQUESTS }}
   backend-deploy:
     runs-on: ubuntu-latest
     needs: prepare-env
