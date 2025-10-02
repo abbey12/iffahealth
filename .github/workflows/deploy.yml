@@ -1,6 +1,6 @@
 name: Deploy to AWS
 
-on:
+on: 
   workflow_dispatch:
   push:
     branches: [ main, production ]
@@ -33,111 +33,11 @@ env:
   RATE_LIMIT_MAX_REQUESTS: 100
 
 jobs:
-  prepare-env:
-    runs-on: ubuntu-latest
-    outputs:
-      cname: ${{ steps.output-cname.outputs.cname }}
-      url: ${{ steps.output-cname.outputs.url }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
-
-      - name: Install EB CLI
-        run: pip install --upgrade awsebcli
-
-      - name: Initialize EB application
-        run: |
-          set -e
-          eb init "$EB_APPLICATION_NAME" --region "$AWS_REGION" -p docker || true
-
-      - name: Ensure environment exists (sample app)
-        id: ensure-env
-        env:
-          DATABASE_URL: ${{ env.DATABASE_URL }}
-          DB_HOST: ${{ env.DB_HOST }}
-          DB_PORT: ${{ env.DB_PORT }}
-          DB_NAME: ${{ env.DB_NAME }}
-          DB_USER: ${{ env.DB_USER }}
-          DB_PASSWORD: ${{ env.DB_PASSWORD }}
-          JWT_SECRET: ${{ env.JWT_SECRET }}
-          JWT_EXPIRES_IN: ${{ env.JWT_EXPIRES_IN }}
-          PORT: ${{ env.PORT }}
-          NODE_ENV: ${{ env.NODE_ENV }}
-          CORS_ORIGIN: ${{ env.CORS_ORIGIN }}
-          SMTP_HOST: ${{ env.SMTP_HOST }}
-          SMTP_PORT: ${{ env.SMTP_PORT }}
-          SMTP_USER: ${{ env.SMTP_USER }}
-          SMTP_PASS: ${{ env.SMTP_PASS }}
-          UPLOAD_DIR: ${{ env.UPLOAD_DIR }}
-          MAX_FILE_SIZE: ${{ env.MAX_FILE_SIZE }}
-          RATE_LIMIT_WINDOW_MS: ${{ env.RATE_LIMIT_WINDOW_MS }}
-          RATE_LIMIT_MAX_REQUESTS: ${{ env.RATE_LIMIT_MAX_REQUESTS }}
-        run: |
-          set -e
-          if eb status "$EB_ENVIRONMENT_NAME" >/dev/null 2>&1; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-            echo "Environment exists"
-            eb setenv "DATABASE_URL=$DATABASE_URL" "DB_HOST=$DB_HOST" "DB_PORT=$DB_PORT" "DB_NAME=$DB_NAME" "DB_USER=$DB_USER" "DB_PASSWORD=$DB_PASSWORD" "JWT_SECRET=$JWT_SECRET" "JWT_EXPIRES_IN=$JWT_EXPIRES_IN" "PORT=$PORT" "NODE_ENV=$NODE_ENV" "CORS_ORIGIN=$CORS_ORIGIN" "SMTP_HOST=$SMTP_HOST" "SMTP_PORT=$SMTP_PORT" "SMTP_USER=$SMTP_USER" "SMTP_PASS=$SMTP_PASS" "UPLOAD_DIR=$UPLOAD_DIR" "MAX_FILE_SIZE=$MAX_FILE_SIZE" "RATE_LIMIT_WINDOW_MS=$RATE_LIMIT_WINDOW_MS" "RATE_LIMIT_MAX_REQUESTS=$RATE_LIMIT_MAX_REQUESTS"
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-            ENV_VARS="DATABASE_URL=$DATABASE_URL,DB_HOST=$DB_HOST,DB_PORT=$DB_PORT,DB_NAME=$DB_NAME,DB_USER=$DB_USER,DB_PASSWORD=$DB_PASSWORD,JWT_SECRET=$JWT_SECRET,JWT_EXPIRES_IN=$JWT_EXPIRES_IN,PORT=$PORT,NODE_ENV=$NODE_ENV,CORS_ORIGIN=$CORS_ORIGIN,SMTP_HOST=$SMTP_HOST,SMTP_PORT=$SMTP_PORT,SMTP_USER=$SMTP_USER,SMTP_PASS=$SMTP_PASS,UPLOAD_DIR=$UPLOAD_DIR,MAX_FILE_SIZE=$MAX_FILE_SIZE,RATE_LIMIT_WINDOW_MS=$RATE_LIMIT_WINDOW_MS,RATE_LIMIT_MAX_REQUESTS=$RATE_LIMIT_MAX_REQUESTS"
-            eb create "$EB_ENVIRONMENT_NAME" --single --instance_type t3.micro --sample --timeout 30 --env-vars "$ENV_VARS"
-          fi
-
-      - name: Wait for environment to be ready and get CNAME
-        id: output-cname
-        run: |
-          set -e
-          # Poll until we have a valid CNAME (not UNKNOWN)
-          for i in {1..60}; do
-            OUTPUT=$(eb status "$EB_ENVIRONMENT_NAME")
-            echo "=== EB Status Output ==="
-            echo "$OUTPUT"
-            echo "========================"
-            
-            # Extract CNAME from "Application available at <cname>" message
-            CNAME=$(echo "$OUTPUT" | grep -o 'Application available at [^.]*\.elasticbeanstalk\.com' | sed 's/Application available at //' || true)
-            
-            # Fallback: try to extract from CNAME field
-            if [ -z "$CNAME" ] || [ "$CNAME" = "UNKNOWN" ]; then
-              CNAME=$(echo "$OUTPUT" | sed -n 's/^[ ]*CNAME: \(.*\)$/\1/p' | tr -d '\r\n' || true)
-            fi
-            
-            echo "Extracted CNAME: '$CNAME'"
-            
-            # Check if we have a valid CNAME
-            if [ -n "$CNAME" ] && [ "$CNAME" != "UNKNOWN" ] && [[ "$CNAME" == *".elasticbeanstalk.com" ]]; then
-              echo "cname=$CNAME" >> $GITHUB_OUTPUT
-              echo "url=http://$CNAME" >> $GITHUB_OUTPUT
-              echo "✅ Resolved CNAME: $CNAME"
-              break
-            fi
-            
-            echo "Waiting for valid CNAME... (attempt $i/60)"
-            sleep 20
-          done
-          
-          # Final check
-          if [ -z "$CNAME" ] || [ "$CNAME" = "UNKNOWN" ]; then
-            echo "❌ Failed to resolve CNAME after 20 minutes"
-            exit 1
-          fi
-
   backend-deploy:
     runs-on: ubuntu-latest
-    needs: prepare-env
+    outputs:
+      cname: ${{ steps.deploy.outputs.cname }}
+      url: ${{ steps.deploy.outputs.url }}
     env:
       VERSION_LABEL: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
@@ -159,6 +59,70 @@ jobs:
       - name: Install EB CLI
         run: pip install --upgrade awsebcli
 
+      - name: Create .ebextensions config
+        run: |
+          mkdir -p backend/.ebextensions
+          cat > backend/.ebextensions/01_env.config <<EOF
+          option_settings:
+            - namespace: aws:elasticbeanstalk:application:environment
+              option_name: DATABASE_URL
+              value: "${{ env.DATABASE_URL }}"
+            - namespace: aws:elasticbeanstalk:application:environment
+              option_name: DB_HOST
+              value: "${{ env.DB_HOST }}"
+            - namespace: aws:elasticbeanstalk:application:environment
+              option_name: DB_PORT
+              value: "${{ env.DB_PORT }}"
+            - namespace: aws:elasticbeanstalk:application:environment
+              option_name: DB_NAME
+              value: "${{ env.DB_NAME }}"
+            - namespace: aws:elasticbeanstalk:application:environment
+              option_name: DB_USER
+              value: "${{ env.DB_USER }}"
+            - namespace: aws:elasticbeanstalk:application:environment
+              option_name: DB_PASSWORD
+              value: "${{ env.DB_PASSWORD }}"
+            - namespace: aws:elasticbeanstalk:application:environment
+              option_name: JWT_SECRET
+              value: "${{ env.JWT_SECRET }}"
+            - namespace: aws:elasticbeanstalk:application:environment
+              option_name: JWT_EXPIRES_IN
+              value: "${{ env.JWT_EXPIRES_IN }}"
+            - namespace: aws:elasticbeanstalk:application:environment
+              option_name: PORT
+              value: "${{ env.PORT }}"
+            - namespace: aws:elasticbeanstalk:application:environment
+              option_name: NODE_ENV
+              value: "${{ env.NODE_ENV }}"
+            - namespace: aws:elasticbeanstalk:application:environment
+              option_name: CORS_ORIGIN
+              value: "${{ env.CORS_ORIGIN }}"
+            - namespace: aws:elasticbeanstalk:application:environment
+              option_name: SMTP_HOST
+              value: "${{ env.SMTP_HOST }}"
+            - namespace: aws:elasticbeanstalk:application:environment
+              option_name: SMTP_PORT
+              value: "${{ env.SMTP_PORT }}"
+            - namespace: aws:elasticbeanstalk:application:environment
+              option_name: SMTP_USER
+              value: "${{ env.SMTP_USER }}"
+            - namespace: aws:elasticbeanstalk:application:environment
+              option_name: SMTP_PASS
+              value: "${{ env.SMTP_PASS }}"
+            - namespace: aws:elasticbeanstalk:application:environment
+              option_name: UPLOAD_DIR
+              value: "${{ env.UPLOAD_DIR }}"
+            - namespace: aws:elasticbeanstalk:application:environment
+              option_name: MAX_FILE_SIZE
+              value: "${{ env.MAX_FILE_SIZE }}"
+            - namespace: aws:elasticbeanstalk:application:environment
+              option_name: RATE_LIMIT_WINDOW_MS
+              value: "${{ env.RATE_LIMIT_WINDOW_MS }}"
+            - namespace: aws:elasticbeanstalk:application:environment
+              option_name: RATE_LIMIT_MAX_REQUESTS
+              value: "${{ env.RATE_LIMIT_MAX_REQUESTS }}"
+          EOF
+
       - name: Create Dockerrun.aws.json
         run: |
           cat > backend/Dockerrun.aws.json <<EOF
@@ -175,84 +139,6 @@ jobs:
                     "hostPort": 80,
                     "containerPort": 3000
                   }
-                ],
-                "environment": [
-                  {
-                    "name": "DATABASE_URL",
-                    "value": "${{ env.DATABASE_URL }}"
-                  },
-                  {
-                    "name": "DB_HOST",
-                    "value": "${{ env.DB_HOST }}"
-                  },
-                  {
-                    "name": "DB_PORT",
-                    "value": "${{ env.DB_PORT }}"
-                  },
-                  {
-                    "name": "DB_NAME",
-                    "value": "${{ env.DB_NAME }}"
-                  },
-                  {
-                    "name": "DB_USER",
-                    "value": "${{ env.DB_USER }}"
-                  },
-                  {
-                    "name": "DB_PASSWORD",
-                    "value": "${{ env.DB_PASSWORD }}"
-                  },
-                  {
-                    "name": "JWT_SECRET",
-                    "value": "${{ env.JWT_SECRET }}"
-                  },
-                  {
-                    "name": "JWT_EXPIRES_IN",
-                    "value": "${{ env.JWT_EXPIRES_IN }}"
-                  },
-                  {
-                    "name": "PORT",
-                    "value": "${{ env.PORT }}"
-                  },
-                  {
-                    "name": "NODE_ENV",
-                    "value": "${{ env.NODE_ENV }}"
-                  },
-                  {
-                    "name": "CORS_ORIGIN",
-                    "value": "${{ env.CORS_ORIGIN }}"
-                  },
-                  {
-                    "name": "SMTP_HOST",
-                    "value": "${{ env.SMTP_HOST }}"
-                  },
-                  {
-                    "name": "SMTP_PORT",
-                    "value": "${{ env.SMTP_PORT }}"
-                  },
-                  {
-                    "name": "SMTP_USER",
-                    "value": "${{ env.SMTP_USER }}"
-                  },
-                  {
-                    "name": "SMTP_PASS",
-                    "value": "${{ env.SMTP_PASS }}"
-                  },
-                  {
-                    "name": "UPLOAD_DIR",
-                    "value": "${{ env.UPLOAD_DIR }}"
-                  },
-                  {
-                    "name": "MAX_FILE_SIZE",
-                    "value": "${{ env.MAX_FILE_SIZE }}"
-                  },
-                  {
-                    "name": "RATE_LIMIT_WINDOW_MS",
-                    "value": "${{ env.RATE_LIMIT_WINDOW_MS }}"
-                  },
-                  {
-                    "name": "RATE_LIMIT_MAX_REQUESTS",
-                    "value": "${{ env.RATE_LIMIT_MAX_REQUESTS }}"
-                  }
                 ]
               }
             ]
@@ -260,17 +146,25 @@ jobs:
           EOF
 
       - name: Init and deploy via EB CLI
+        id: deploy
         run: |
           set -e
           cd backend
           eb init "$EB_APPLICATION_NAME" --region "$AWS_REGION" -p docker || true
-          eb use "$EB_ENVIRONMENT_NAME" || true
-          eb deploy "$EB_ENVIRONMENT_NAME" -l "$VERSION_LABEL" --timeout 30
-          eb status "$EB_ENVIRONMENT_NAME"
+          if eb status "$EB_ENVIRONMENT_NAME" >/dev/null 2>&1; then
+            eb deploy "$EB_ENVIRONMENT_NAME" -l "$VERSION_LABEL" --timeout 30
+          else
+            eb create "$EB_ENVIRONMENT_NAME" --single --instance_type t3.micro -l "$VERSION_LABEL" --timeout 30
+          fi
+          OUTPUT=$(eb status "$EB_ENVIRONMENT_NAME")
+          echo "$OUTPUT"
+          CNAME=$(echo "$OUTPUT" | sed -n 's/^[ ]*CNAME: \(.*\)$/\1/p' | tr -d '\r\n')
+          echo "cname=$CNAME" >> $GITHUB_OUTPUT
+          echo "url=http://$CNAME" >> $GITHUB_OUTPUT
 
   backend-cloudfront:
     runs-on: ubuntu-latest
-    needs: [prepare-env, backend-deploy]
+    needs: [backend-deploy]
     outputs:
       backend-cloudfront-url: ${{ steps.backend-cf.outputs.backend-cloudfront-url }}
     steps:
@@ -288,7 +182,7 @@ jobs:
         id: backend-cf
         run: |
           set -e
-          BACKEND_DOMAIN=$(echo "${{ needs.prepare-env.outputs.url }}" | sed 's|http://||')
+          BACKEND_DOMAIN=$(echo "${{ needs.backend-deploy.outputs.url }}" | sed 's|http://||')
           echo "Backend domain: $BACKEND_DOMAIN"
           
           # Check if backend CloudFront distribution already exists
@@ -363,7 +257,7 @@ jobs:
 
   frontend-deploy:
     runs-on: ubuntu-latest
-    needs: [prepare-env, backend-cloudfront]
+    needs: [backend-deploy, backend-cloudfront]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -497,7 +391,7 @@ jobs:
           echo "📦 S3 Website URL (HTTP): http://${{ env.FRONTEND_BUCKET }}.s3-website-${{ env.AWS_REGION }}.amazonaws.com"
           echo "🌍 Frontend CloudFront URL (HTTPS): ${{ steps.cloudfront.outputs.cloudfront-url }}"
           echo ""
-          echo "🔗 Backend EB URL (HTTP): ${{ needs.prepare-env.outputs.url }}"
+          echo "🔗 Backend EB URL (HTTP): ${{ needs.backend-deploy.outputs.url }}"
           echo "⚡ Backend CloudFront URL (HTTPS): ${{ needs.backend-cloudfront.outputs.backend-cloudfront-url }}"
           echo ""
           echo "✅ RECOMMENDED: Use the CloudFront URLs for global, secure access!"
