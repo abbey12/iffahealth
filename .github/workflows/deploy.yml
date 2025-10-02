@@ -1,6 +1,6 @@
 name: Deploy to AWS
 
-on: 
+on:
   workflow_dispatch:
   push:
     branches: [ main, production ]
@@ -152,9 +152,9 @@ jobs:
           cd backend
           eb init "$EB_APPLICATION_NAME" --region "$AWS_REGION" -p docker || true
           if eb status "$EB_ENVIRONMENT_NAME" >/dev/null 2>&1; then
-            eb deploy "$EB_ENVIRONMENT_NAME" -l "$VERSION_LABEL" --timeout 30
+            eb deploy "$EB_ENVIRONMENT_NAME" --label "$VERSION_LABEL" --timeout 30
           else
-            eb create "$EB_ENVIRONMENT_NAME" --single --instance_type t3.micro -l "$VERSION_LABEL" --timeout 30
+            eb create "$EB_ENVIRONMENT_NAME" --single --instance_type t3.micro --label "$VERSION_LABEL" --timeout 30
           fi
           OUTPUT=$(eb status "$EB_ENVIRONMENT_NAME")
           echo "$OUTPUT"
