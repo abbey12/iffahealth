@@ -133,7 +133,7 @@ jobs:
             echo "❌ Failed to resolve CNAME after 20 minutes"
             exit 1
           fi
-      backend-deploy:
+  backend-deploy:
     runs-on: ubuntu-latest
     needs: prepare-env
     env:
