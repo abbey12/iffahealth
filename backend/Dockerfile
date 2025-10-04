@@ -7,11 +7,14 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install only production dependencies
-RUN npm ci --only=production
+# Install all dependencies first (needed for bcrypt compilation)
+RUN npm ci
 
 # Copy the simple server
 COPY simple_server.js ./
+
+# Remove dev dependencies to reduce image size
+RUN npm prune --production
 
 # Create a non-root user
 RUN addgroup -g 1001 -S nodejs
