@@ -86,7 +86,7 @@ User.init(
     },
     password: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true, // Temporarily allow null for migration
       validate: {
         len: [6, 255],
       },

@@ -7,6 +7,8 @@
     "start": "node dist/server.js",
     "dev": "nodemon enhanced_server.js",
     "setup-db": "node scripts/setup_enhanced_db.js",
+    "deploy-setup": "node scripts/deploy-setup.js",
+    "prestart": "npm run deploy-setup",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
