@@ -7,11 +7,11 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install all dependencies
+# Install only production dependencies
 RUN npm ci --only=production
 
-# Copy source code and scripts
-COPY . .
+# Copy the simple server
+COPY simple_server.js ./
 
 # Create a non-root user
 RUN addgroup -g 1001 -S nodejs
@@ -24,7 +24,6 @@ USER nodejs
 # Set environment variables
 ENV NODE_ENV=production
 ENV PORT=80
-ENV HOST=0.0.0.0
 
 # Expose port 80
 EXPOSE 80
@@ -33,5 +32,5 @@ EXPOSE 80
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost:80/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
 
-# Start the application using the enhanced server directly
-CMD ["node", "enhanced_server.js"]
+# Start the simple server
+CMD ["node", "simple_server.js"]
