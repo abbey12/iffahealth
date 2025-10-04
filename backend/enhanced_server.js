@@ -26,6 +26,25 @@ const paymentRoutes = require('./routes/payments');
 // Import database connection
 const { query } = require('./config/database');
 
+// Run database setup before starting server
+const setupDatabase = async () => {
+  try {
+    console.log('🔧 Running database setup...');
+    const { exec } = require('child_process');
+    const { promisify } = require('util');
+    const execAsync = promisify(exec);
+    
+    await execAsync('node scripts/deploy-setup.js');
+    console.log('✅ Database setup completed');
+  } catch (error) {
+    console.error('❌ Database setup failed:', error);
+    // Don't exit, let the server start and handle it gracefully
+  }
+};
+
+// Run database setup
+setupDatabase();
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 

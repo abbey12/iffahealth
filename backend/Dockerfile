@@ -1,17 +1,17 @@
-# Build stage
-FROM node:18-alpine AS builder
-WORKDIR /app
-COPY package*.json ./
-RUN npm i
-COPY . .
-RUN npm run build
-
-# Production stage
+# Use Node.js 18 Alpine image
 FROM node:18-alpine
+
+# Set working directory
 WORKDIR /app
+
+# Copy package files
 COPY package*.json ./
-RUN npm i --only=production
-COPY --from=builder /app/dist ./dist
+
+# Install all dependencies
+RUN npm ci --only=production
+
+# Copy source code and scripts
+COPY . .
 
 # Create a non-root user
 RUN addgroup -g 1001 -S nodejs
@@ -21,13 +21,17 @@ RUN adduser -S nodejs -u 1001
 RUN chown -R nodejs:nodejs /app
 USER nodejs
 
-# EB single-container Docker platform expects app to run on port 80
+# Set environment variables
+ENV NODE_ENV=production
 ENV PORT=80
 ENV HOST=0.0.0.0
-
 
 # Expose port 80
 EXPOSE 80
 
-# Start the application
-CMD ["npm", "start"]
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:80/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
+
+# Start the application using the enhanced server directly
+CMD ["node", "enhanced_server.js"]
